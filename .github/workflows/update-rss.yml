@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
 
   schedule:
-    # GitHub usa UTC. Se ejecuta cada hora de lunes a sábado
-    # y después se comprueba el horario real de Madrid.
+    # GitHub ejecuta el workflow cada hora de lunes a sábado.
+    # Después se comprueba la hora exacta de España.
     - cron: "0 * * * 1-6"
 
 permissions:
@@ -18,7 +18,7 @@ concurrency:
 jobs:
   actualizar:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
       - name: Descargar repositorio
@@ -32,14 +32,15 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "ejecutar=si" >> "$GITHUB_OUTPUT"
+            echo "Ejecución manual: se actualizará el RSS."
             exit 0
           fi
 
           DIA=$(TZ=Europe/Madrid date +%u)
           HORA=$(TZ=Europe/Madrid date +%H)
 
-          echo "Día en Madrid: $DIA"
-          echo "Hora en Madrid: $HORA"
+          echo "Día en España: $DIA"
+          echo "Hora en España: $HORA"
 
           if [ "$DIA" -ge 1 ] && [ "$DIA" -le 6 ] &&
              [ "$HORA" -ge 7 ] && [ "$HORA" -le 22 ]; then
@@ -60,18 +61,29 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
 
       - name: Crear RSS
         if: steps.horario.outputs.ejecutar == 'si'
         run: |
           python generate_feed.py
 
-          test -s docs/feed.xml
+          if [ ! -s docs/feed.xml ]; then
+            echo "ERROR: no se ha creado docs/feed.xml"
+            exit 1
+          fi
 
           python - <<'PY'
           import xml.etree.ElementTree as ET
-          ET.parse("docs/feed.xml")
-          print("docs/feed.xml es un XML válido")
+
+          ruta = "docs/feed.xml"
+          raiz = ET.parse(ruta).getroot()
+          noticias = raiz.findall("./channel/item")
+
+          if not noticias:
+              raise RuntimeError("El RSS no contiene noticias.")
+
+          print(f"RSS XML válido con {len(noticias)} noticias.")
           PY
 
       - name: Guardar RSS
@@ -84,7 +96,7 @@ jobs:
           git add docs/feed.xml
 
           if git diff --cached --quiet; then
-            echo "No hay cambios en el RSS."
+            echo "El RSS ya estaba actualizado."
             exit 0
           fi
 
