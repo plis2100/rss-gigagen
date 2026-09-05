@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urljoin
+from urllib.parse import urlparse
+import calendar
 import json
 import re
 
@@ -25,7 +26,12 @@ HEADERS = {
         "AppleWebKit/537.36 (KHTML, like Gecko) "
         "Chrome/128.0.0.0 Safari/537.36"
     ),
+    "Accept": (
+        "text/html,application/xhtml+xml,application/xml;"
+        "q=0.9,*/*;q=0.8"
+    ),
     "Accept-Language": "en-US,en;q=0.9",
+    "Cache-Control": "no-cache",
 }
 
 
@@ -40,6 +46,12 @@ def descargar(url):
         timeout=60,
         allow_redirects=True,
     )
+
+    print(
+        f"Descarga {url}: "
+        f"HTTP {respuesta.status_code}"
+    )
+
     respuesta.raise_for_status()
     return respuesta
 
@@ -63,8 +75,44 @@ def convertir_fecha(texto):
         return None
 
 
+def fecha_desde_feedburner(elemento):
+    fecha_estructurada = (
+        elemento.get("published_parsed")
+        or elemento.get("updated_parsed")
+    )
+
+    if not fecha_estructurada:
+        return None
+
+    segundos = calendar.timegm(fecha_estructurada)
+
+    return datetime.fromtimestamp(
+        segundos,
+        tz=timezone.utc,
+    )
+
+
+def es_enlace_de_comunicado(titulo, enlace):
+    titulo_minusculas = titulo.lower()
+    dominio = urlparse(enlace).netloc.lower()
+
+    dominios_permitidos = (
+        "globenewswire.com",
+        "grifols.com",
+        "prnewswire.com",
+    )
+
+    return (
+        titulo_minusculas.startswith("gigagen")
+        and any(
+            dominio.endswith(dominio_permitido)
+            for dominio_permitido in dominios_permitidos
+        )
+    )
+
+
 def obtener_datos_articulo(url):
-    datos = {
+    resultado = {
         "fecha": None,
         "descripcion": "",
     }
@@ -77,16 +125,22 @@ def obtener_datos_articulo(url):
         )
 
         meta_descripcion = (
-            soup.find("meta", property="og:description")
-            or soup.find("meta", attrs={"name": "description"})
+            soup.find(
+                "meta",
+                property="og:description",
+            )
+            or soup.find(
+                "meta",
+                attrs={"name": "description"},
+            )
         )
 
         if meta_descripcion:
-            datos["descripcion"] = limpiar(
+            resultado["descripcion"] = limpiar(
                 meta_descripcion.get("content", "")
             )
 
-        posibles_meta_fecha = [
+        etiquetas_fecha = [
             soup.find(
                 "meta",
                 property="article:published_time",
@@ -99,9 +153,13 @@ def obtener_datos_articulo(url):
                 "meta",
                 attrs={"name": "publish-date"},
             ),
+            soup.find(
+                "meta",
+                attrs={"name": "datePublished"},
+            ),
         ]
 
-        for etiqueta in posibles_meta_fecha:
+        for etiqueta in etiquetas_fecha:
             if not etiqueta:
                 continue
 
@@ -110,8 +168,8 @@ def obtener_datos_articulo(url):
             )
 
             if fecha:
-                datos["fecha"] = fecha
-                return datos
+                resultado["fecha"] = fecha
+                return resultado
 
         etiqueta_time = soup.find("time")
 
@@ -122,16 +180,21 @@ def obtener_datos_articulo(url):
             )
 
             if fecha:
-                datos["fecha"] = fecha
-                return datos
+                resultado["fecha"] = fecha
+                return resultado
 
         for script in soup.find_all(
             "script",
             type="application/ld+json",
         ):
+            contenido_script = script.string
+
+            if not contenido_script:
+                continue
+
             try:
                 contenido = json.loads(
-                    script.string or "{}"
+                    contenido_script
                 )
             except (json.JSONDecodeError, TypeError):
                 continue
@@ -151,83 +214,76 @@ def obtener_datos_articulo(url):
                 )
 
                 if fecha:
-                    datos["fecha"] = fecha
-                    return datos
+                    resultado["fecha"] = fecha
+                    return resultado
+
+        texto_pagina = limpiar(
+            soup.get_text(" ", strip=True)
+        )
 
         coincidencia = re.search(
             r"\b(?:January|February|March|April|May|June|"
             r"July|August|September|October|November|December)"
             r"\s+\d{1,2},\s+20\d{2}\b",
-            limpiar(soup.get_text(" ", strip=True)),
+            texto_pagina,
             flags=re.IGNORECASE,
         )
 
         if coincidencia:
-            datos["fecha"] = convertir_fecha(
+            resultado["fecha"] = convertir_fecha(
                 coincidencia.group(0)
             )
 
     except requests.RequestException as error:
         print(
-            f"No se pudieron ampliar los datos de {url}: "
-            f"{error}"
+            f"No se pudo ampliar {url}: {error}"
         )
 
-    return datos
+    return resultado
 
 
 def obtener_comunicados():
     respuesta = descargar(SOURCE_URL)
-    soup = BeautifulSoup(respuesta.text, "html.parser")
-
-    encabezado = None
-
-    for titulo in soup.find_all(
-        ["h2", "h3", "h4", "strong"],
-    ):
-        if limpiar(titulo.get_text()).lower() == "press releases":
-            encabezado = titulo
-            break
-
-    if not encabezado:
-        raise RuntimeError(
-            "No se encontró el apartado Press Releases "
-            "en la página de GigaGen."
-        )
+    soup = BeautifulSoup(
+        respuesta.text,
+        "html.parser",
+    )
 
     comunicados = []
     enlaces_vistos = set()
 
-    for elemento in encabezado.find_all_next(
-        ["h2", "h3", "h4", "a"]
-    ):
-        if elemento.name in ["h2", "h3", "h4"]:
-            texto_encabezado = limpiar(
-                elemento.get_text(" ", strip=True)
-            ).lower()
+    todos_los_enlaces = soup.find_all(
+        "a",
+        href=True,
+    )
 
-            if texto_encabezado == "in the news":
-                break
+    print(
+        f"Enlaces totales encontrados: "
+        f"{len(todos_los_enlaces)}"
+    )
 
-            continue
-
-        enlace = urljoin(
-            SOURCE_URL,
-            elemento.get("href", ""),
-        )
-
+    for enlace_html in todos_los_enlaces:
         titulo = limpiar(
-            elemento.get_text(" ", strip=True)
+            enlace_html.get_text(" ", strip=True)
         )
 
-        if (
-            not enlace.startswith("http")
-            or len(titulo) < 15
-            or enlace in enlaces_vistos
+        enlace = limpiar(
+            enlace_html.get("href", "")
+        )
+
+        if not es_enlace_de_comunicado(
+            titulo,
+            enlace,
         ):
             continue
 
+        if enlace in enlaces_vistos:
+            continue
+
         enlaces_vistos.add(enlace)
+
+        print(f"Comunicado encontrado: {titulo}")
+
         datos = obtener_datos_articulo(enlace)
 
         comunicados.append({
@@ -239,8 +295,9 @@ def obtener_comunicados():
 
     if not comunicados:
         raise RuntimeError(
-            "No se encontraron comunicados actuales de GigaGen. "
-            "La RSS anterior no será eliminada."
+            "No se encontraron enlaces de comunicados de "
+            "GigaGen publicados en Grifols, GlobeNewswire "
+            "o PR Newswire. La RSS anterior no será eliminada."
         )
 
     fecha_antigua = datetime(
@@ -251,8 +308,8 @@ def obtener_comunicados():
     )
 
     comunicados.sort(
-        key=lambda noticia: (
-            noticia["fecha"] or fecha_antigua
+        key=lambda comunicado: (
+            comunicado["fecha"] or fecha_antigua
         ),
         reverse=True,
     )
@@ -271,7 +328,7 @@ def crear_rss(comunicados):
     feed.id(GITHUB_RSS)
     feed.title("GigaGen – Current Press Releases")
     feed.description(
-        "Current press releases published by GigaGen"
+        "Current official press releases published by GigaGen"
     )
     feed.language("en-US")
     feed.lastBuildDate(datetime.now(timezone.utc))
