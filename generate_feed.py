@@ -1,15 +1,13 @@
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
-from urllib.parse import urljoin, urlparse
 import xml.etree.ElementTree as ET
 
-import requests
-from bs4 import BeautifulSoup
 from feedgen.feed import FeedGenerator
+from playwright.sync_api import sync_playwright
 
 
-PAGINA = "https://www.gigagen.com/"
+PAGINA = "https://www.gigagen.com/#news"
 ARCHIVO_RSS = Path("docs/feed.xml")
 
 URL_RSS_PUBLICA = (
@@ -17,21 +15,14 @@ URL_RSS_PUBLICA = (
     "plis2100/rss-gigagen/main/docs/feed.xml"
 )
 
-DOMINIOS_PERMITIDOS = {
+DOMINIOS_NOTICIAS = (
     "grifols.com",
-    "www.grifols.com",
     "globenewswire.com",
-    "www.globenewswire.com",
     "prnewswire.com",
-    "www.prnewswire.com",
-}
+)
 
 
 def cargar_fechas_anteriores():
-    """
-    Conserva las fechas de las noticias que ya estaban en el RSS.
-    Así Feedly no considera que todas las noticias son nuevas cada hora.
-    """
     fechas = {}
 
     if not ARCHIVO_RSS.exists():
@@ -49,54 +40,90 @@ def cargar_fechas_anteriores():
                     fechas[enlace] = parsedate_to_datetime(fecha)
                 except (TypeError, ValueError):
                     pass
+
     except (ET.ParseError, OSError):
         pass
 
     return fechas
 
 
-def descargar_pagina():
-    cabeceras = {
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 Chrome/124.0 Safari/537.36"
-        ),
-        "Accept": "text/html,application/xhtml+xml",
-        "Accept-Language": "en-US,en;q=0.9",
-    }
-
-    respuesta = requests.get(
-        PAGINA,
-        headers=cabeceras,
-        timeout=(10, 30),
-    )
-    respuesta.raise_for_status()
-
-    return respuesta.text
+def limpiar_texto(texto):
+    return " ".join((texto or "").split()).strip()
 
 
 def obtener_comunicados():
-    html = descargar_pagina()
-    sopa = BeautifulSoup(html, "html.parser")
+    with sync_playwright() as playwright:
+        navegador = playwright.chromium.launch(
+            headless=True,
+            args=[
+                "--disable-dev-shm-usage",
+                "--no-sandbox",
+            ],
+        )
+
+        pagina = navegador.new_page(
+            user_agent=(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 "
+                "(KHTML, like Gecko) "
+                "Chrome/124.0 Safari/537.36"
+            ),
+            viewport={
+                "width": 1440,
+                "height": 1200,
+            },
+        )
+
+        print("Abriendo la página de GigaGen...")
+
+        pagina.goto(
+            PAGINA,
+            wait_until="domcontentloaded",
+            timeout=60000,
+        )
+
+        # Esperar a que WordPress termine de cargar el contenido.
+        pagina.wait_for_timeout(5000)
+
+        enlaces = pagina.locator("a[href]").evaluate_all(
+            """
+            elementos => elementos.map(elemento => ({
+                titulo: (
+                    elemento.innerText ||
+                    elemento.textContent ||
+                    elemento.getAttribute("aria-label") ||
+                    elemento.getAttribute("title") ||
+                    ""
+                ).replace(/\\s+/g, " ").trim(),
+
+                enlace: elemento.href || ""
+            }))
+            """
+        )
+
+        navegador.close()
 
     comunicados = []
     enlaces_vistos = set()
 
-    for etiqueta in sopa.select("a[href]"):
-        titulo = " ".join(etiqueta.get_text(" ", strip=True).split())
-        enlace = urljoin(PAGINA, etiqueta.get("href", "").strip())
+    for elemento in enlaces:
+        titulo = limpiar_texto(elemento.get("titulo"))
+        enlace = limpiar_texto(elemento.get("enlace"))
+        titulo_minusculas = titulo.lower()
+        enlace_minusculas = enlace.lower()
 
         if not titulo or not enlace:
             continue
 
-        dominio = urlparse(enlace).netloc.lower()
-
-        # Los comunicados de la sección Press Releases comienzan
-        # normalmente por “GigaGen” y enlazan a Grifols o GlobeNewswire.
-        if not titulo.lower().startswith("gigagen"):
+        # El título tiene que referirse a GigaGen.
+        if "gigagen" not in titulo_minusculas:
             continue
 
-        if dominio not in DOMINIOS_PERMITIDOS:
+        # Solamente se admiten enlaces de comunicados oficiales.
+        if not any(
+            dominio in enlace_minusculas
+            for dominio in DOMINIOS_NOTICIAS
+        ):
             continue
 
         if enlace in enlaces_vistos:
@@ -109,44 +136,53 @@ def obtener_comunicados():
                 "titulo": titulo,
                 "enlace": enlace,
                 "descripcion": (
-                    "Comunicado de prensa publicado por GigaGen. "
-                    "Abre el enlace para consultar la noticia completa."
+                    "Comunicado de prensa o noticia corporativa de GigaGen."
                 ),
             }
         )
 
     if not comunicados:
         raise RuntimeError(
-            "No se encontraron comunicados de GigaGen en la página principal."
+            "GigaGen cargó la página, pero no se encontraron enlaces "
+            "de comunicados de Grifols, GlobeNewswire o PR Newswire."
         )
 
-    return comunicados[:30]
+    print(f"Se encontraron {len(comunicados)} comunicados.")
+
+    for comunicado in comunicados:
+        print(f"- {comunicado['titulo']}")
+
+    return comunicados[:40]
 
 
 def crear_rss(comunicados):
     fechas_anteriores = cargar_fechas_anteriores()
-    fecha_actual = datetime.now(timezone.utc)
+    ahora = datetime.now(timezone.utc)
 
     generador = FeedGenerator()
+
     generador.id(PAGINA)
     generador.title("GigaGen - Press Releases")
-    generador.link(href=PAGINA, rel="alternate")
-    generador.link(href=URL_RSS_PUBLICA, rel="self")
     generador.description(
-        "Últimos comunicados y noticias corporativas de GigaGen"
+        "Últimos comunicados de prensa y noticias corporativas de GigaGen"
     )
     generador.language("en")
-    generador.lastBuildDate(fecha_actual)
+    generador.link(
+        href=PAGINA,
+        rel="alternate",
+    )
+    generador.link(
+        href=URL_RSS_PUBLICA,
+        rel="self",
+    )
+    generador.lastBuildDate(ahora)
 
-    # Se añaden en orden inverso porque FeedGen coloca primero
-    # el último elemento incorporado.
     for comunicado in reversed(comunicados):
         enlace = comunicado["enlace"]
 
-        fecha_publicacion = fechas_anteriores.get(
-            enlace,
-            fecha_actual,
-        )
+        # Conserva la fecha antigua si la noticia ya existía.
+        # Las noticias nuevas reciben la fecha de su primera detección.
+        fecha = fechas_anteriores.get(enlace, ahora)
 
         entrada = generador.add_entry()
         entrada.id(enlace)
@@ -154,22 +190,28 @@ def crear_rss(comunicados):
         entrada.title(comunicado["titulo"])
         entrada.link(href=enlace)
         entrada.description(comunicado["descripcion"])
-        entrada.pubDate(fecha_publicacion)
+        entrada.pubDate(fecha)
 
-    ARCHIVO_RSS.parent.mkdir(parents=True, exist_ok=True)
+    ARCHIVO_RSS.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
 
     generador.rss_file(
         str(ARCHIVO_RSS),
         pretty=True,
     )
 
-    if not ARCHIVO_RSS.exists() or ARCHIVO_RSS.stat().st_size < 200:
-        raise RuntimeError("El archivo docs/feed.xml no se creó correctamente.")
+    if not ARCHIVO_RSS.exists():
+        raise RuntimeError("No se creó docs/feed.xml.")
 
-    print(
-        f"RSS creado correctamente con {len(comunicados)} comunicados: "
-        f"{ARCHIVO_RSS}"
-    )
+    if ARCHIVO_RSS.stat().st_size < 200:
+        raise RuntimeError("docs/feed.xml está vacío o incompleto.")
+
+    # Verificar que el resultado sea XML válido.
+    ET.parse(ARCHIVO_RSS)
+
+    print(f"RSS creado correctamente: {ARCHIVO_RSS}")
 
 
 def main():
