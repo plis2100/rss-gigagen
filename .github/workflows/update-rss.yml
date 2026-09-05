@@ -4,19 +4,21 @@ on:
   workflow_dispatch:
 
   schedule:
-    - cron: "54 * * * 1-6"
+    # GitHub usa UTC. Se ejecuta cada hora de lunes a sábado
+    # y después se comprueba el horario real de Madrid.
+    - cron: "0 * * * 1-6"
 
 permissions:
   contents: write
 
 concurrency:
   group: actualizar-rss-gigagen
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   actualizar:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 5
 
     steps:
       - name: Descargar repositorio
@@ -24,50 +26,56 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Configurar Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Comprobar horario de Madrid
+      - name: Comprobar horario
         id: horario
         shell: bash
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "Ejecución manual."
-            echo "ejecutar=true" >> "$GITHUB_OUTPUT"
+            echo "ejecutar=si" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
+          DIA=$(TZ=Europe/Madrid date +%u)
           HORA=$(TZ=Europe/Madrid date +%H)
-          echo "Hora actual en Madrid: $HORA"
 
-          if [ "$HORA" -ge 7 ] && [ "$HORA" -le 22 ]; then
-            echo "ejecutar=true" >> "$GITHUB_OUTPUT"
+          echo "Día en Madrid: $DIA"
+          echo "Hora en Madrid: $HORA"
+
+          if [ "$DIA" -ge 1 ] && [ "$DIA" -le 6 ] &&
+             [ "$HORA" -ge 7 ] && [ "$HORA" -le 22 ]; then
+            echo "ejecutar=si" >> "$GITHUB_OUTPUT"
           else
-            echo "ejecutar=false" >> "$GITHUB_OUTPUT"
+            echo "ejecutar=no" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Configurar Python
+        if: steps.horario.outputs.ejecutar == 'si'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
       - name: Instalar dependencias
-        if: steps.horario.outputs.ejecutar == 'true'
+        if: steps.horario.outputs.ejecutar == 'si'
         run: |
           python -m pip install --upgrade pip
-          python -m pip install --no-cache-dir requests==2.32.3 beautifulsoup4==4.12.3 feedgen==1.0.0 python-dateutil==2.9.0.post0
+          python -m pip install -r requirements.txt
 
       - name: Crear RSS
-        if: steps.horario.outputs.ejecutar == 'true'
+        if: steps.horario.outputs.ejecutar == 'si'
         run: |
           python generate_feed.py
 
-          if [ ! -f "docs/feed.xml" ]; then
-            echo "ERROR: no se creó docs/feed.xml"
-            exit 1
-          fi
+          test -s docs/feed.xml
 
-          ls -lh docs/feed.xml
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+          ET.parse("docs/feed.xml")
+          print("docs/feed.xml es un XML válido")
+          PY
 
       - name: Guardar RSS
-        if: steps.horario.outputs.ejecutar == 'true'
+        if: steps.horario.outputs.ejecutar == 'si'
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
@@ -76,7 +84,7 @@ jobs:
           git add docs/feed.xml
 
           if git diff --cached --quiet; then
-            echo "La RSS no contiene cambios."
+            echo "No hay cambios en el RSS."
             exit 0
           fi
 
