@@ -1,280 +1,102 @@
 from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from pathlib import Path
-from urllib.parse import urlparse
-import calendar
-import json
-import re
+from urllib.parse import urljoin, urlparse
+import xml.etree.ElementTree as ET
 
 import requests
 from bs4 import BeautifulSoup
-from dateutil import parser as date_parser
 from feedgen.feed import FeedGenerator
 
 
-SOURCE_URL = "https://www.gigagen.com/"
-NEWS_URL = "https://www.gigagen.com/#news"
-OUTPUT_FILE = Path("docs/feed.xml")
+PAGINA = "https://www.gigagen.com/"
+ARCHIVO_RSS = Path("docs/feed.xml")
 
-GITHUB_RSS = (
+URL_RSS_PUBLICA = (
     "https://raw.githubusercontent.com/"
     "plis2100/rss-gigagen/main/docs/feed.xml"
 )
 
-HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/128.0.0.0 Safari/537.36"
-    ),
-    "Accept": (
-        "text/html,application/xhtml+xml,application/xml;"
-        "q=0.9,*/*;q=0.8"
-    ),
-    "Accept-Language": "en-US,en;q=0.9",
-    "Cache-Control": "no-cache",
+DOMINIOS_PERMITIDOS = {
+    "grifols.com",
+    "www.grifols.com",
+    "globenewswire.com",
+    "www.globenewswire.com",
+    "prnewswire.com",
+    "www.prnewswire.com",
 }
 
 
-def limpiar(texto):
-    return " ".join((texto or "").split()).strip()
+def cargar_fechas_anteriores():
+    """
+    Conserva las fechas de las noticias que ya estaban en el RSS.
+    Así Feedly no considera que todas las noticias son nuevas cada hora.
+    """
+    fechas = {}
 
-
-def descargar(url):
-    respuesta = requests.get(
-        url,
-        headers=HEADERS,
-        timeout=60,
-        allow_redirects=True,
-    )
-
-    print(
-        f"Descarga {url}: "
-        f"HTTP {respuesta.status_code}"
-    )
-
-    respuesta.raise_for_status()
-    return respuesta
-
-
-def convertir_fecha(texto):
-    if not texto:
-        return None
+    if not ARCHIVO_RSS.exists():
+        return fechas
 
     try:
-        fecha = date_parser.parse(
-            limpiar(texto),
-            fuzzy=True,
-        )
+        raiz = ET.parse(ARCHIVO_RSS).getroot()
 
-        if fecha.tzinfo is None:
-            fecha = fecha.replace(tzinfo=timezone.utc)
+        for item in raiz.findall("./channel/item"):
+            enlace = item.findtext("link", "").strip()
+            fecha = item.findtext("pubDate", "").strip()
 
-        return fecha
+            if enlace and fecha:
+                try:
+                    fechas[enlace] = parsedate_to_datetime(fecha)
+                except (TypeError, ValueError):
+                    pass
+    except (ET.ParseError, OSError):
+        pass
 
-    except (ValueError, TypeError, OverflowError):
-        return None
-
-
-def fecha_desde_feedburner(elemento):
-    fecha_estructurada = (
-        elemento.get("published_parsed")
-        or elemento.get("updated_parsed")
-    )
-
-    if not fecha_estructurada:
-        return None
-
-    segundos = calendar.timegm(fecha_estructurada)
-
-    return datetime.fromtimestamp(
-        segundos,
-        tz=timezone.utc,
-    )
+    return fechas
 
 
-def es_enlace_de_comunicado(titulo, enlace):
-    titulo_minusculas = titulo.lower()
-    dominio = urlparse(enlace).netloc.lower()
-
-    dominios_permitidos = (
-        "globenewswire.com",
-        "grifols.com",
-        "prnewswire.com",
-    )
-
-    return (
-        titulo_minusculas.startswith("gigagen")
-        and any(
-            dominio.endswith(dominio_permitido)
-            for dominio_permitido in dominios_permitidos
-        )
-    )
-
-
-def obtener_datos_articulo(url):
-    resultado = {
-        "fecha": None,
-        "descripcion": "",
+def descargar_pagina():
+    cabeceras = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 Chrome/124.0 Safari/537.36"
+        ),
+        "Accept": "text/html,application/xhtml+xml",
+        "Accept-Language": "en-US,en;q=0.9",
     }
 
-    try:
-        respuesta = descargar(url)
-        soup = BeautifulSoup(
-            respuesta.text,
-            "html.parser",
-        )
+    respuesta = requests.get(
+        PAGINA,
+        headers=cabeceras,
+        timeout=(10, 30),
+    )
+    respuesta.raise_for_status()
 
-        meta_descripcion = (
-            soup.find(
-                "meta",
-                property="og:description",
-            )
-            or soup.find(
-                "meta",
-                attrs={"name": "description"},
-            )
-        )
-
-        if meta_descripcion:
-            resultado["descripcion"] = limpiar(
-                meta_descripcion.get("content", "")
-            )
-
-        etiquetas_fecha = [
-            soup.find(
-                "meta",
-                property="article:published_time",
-            ),
-            soup.find(
-                "meta",
-                attrs={"name": "date"},
-            ),
-            soup.find(
-                "meta",
-                attrs={"name": "publish-date"},
-            ),
-            soup.find(
-                "meta",
-                attrs={"name": "datePublished"},
-            ),
-        ]
-
-        for etiqueta in etiquetas_fecha:
-            if not etiqueta:
-                continue
-
-            fecha = convertir_fecha(
-                etiqueta.get("content", "")
-            )
-
-            if fecha:
-                resultado["fecha"] = fecha
-                return resultado
-
-        etiqueta_time = soup.find("time")
-
-        if etiqueta_time:
-            fecha = convertir_fecha(
-                etiqueta_time.get("datetime")
-                or etiqueta_time.get_text(" ", strip=True)
-            )
-
-            if fecha:
-                resultado["fecha"] = fecha
-                return resultado
-
-        for script in soup.find_all(
-            "script",
-            type="application/ld+json",
-        ):
-            contenido_script = script.string
-
-            if not contenido_script:
-                continue
-
-            try:
-                contenido = json.loads(
-                    contenido_script
-                )
-            except (json.JSONDecodeError, TypeError):
-                continue
-
-            elementos = (
-                contenido
-                if isinstance(contenido, list)
-                else [contenido]
-            )
-
-            for elemento in elementos:
-                if not isinstance(elemento, dict):
-                    continue
-
-                fecha = convertir_fecha(
-                    elemento.get("datePublished")
-                )
-
-                if fecha:
-                    resultado["fecha"] = fecha
-                    return resultado
-
-        texto_pagina = limpiar(
-            soup.get_text(" ", strip=True)
-        )
-
-        coincidencia = re.search(
-            r"\b(?:January|February|March|April|May|June|"
-            r"July|August|September|October|November|December)"
-            r"\s+\d{1,2},\s+20\d{2}\b",
-            texto_pagina,
-            flags=re.IGNORECASE,
-        )
-
-        if coincidencia:
-            resultado["fecha"] = convertir_fecha(
-                coincidencia.group(0)
-            )
-
-    except requests.RequestException as error:
-        print(
-            f"No se pudo ampliar {url}: {error}"
-        )
-
-    return resultado
+    return respuesta.text
 
 
 def obtener_comunicados():
-    respuesta = descargar(SOURCE_URL)
-    soup = BeautifulSoup(
-        respuesta.text,
-        "html.parser",
-    )
+    html = descargar_pagina()
+    sopa = BeautifulSoup(html, "html.parser")
 
     comunicados = []
     enlaces_vistos = set()
 
-    todos_los_enlaces = soup.find_all(
-        "a",
-        href=True,
-    )
+    for etiqueta in sopa.select("a[href]"):
+        titulo = " ".join(etiqueta.get_text(" ", strip=True).split())
+        enlace = urljoin(PAGINA, etiqueta.get("href", "").strip())
 
-    print(
-        f"Enlaces totales encontrados: "
-        f"{len(todos_los_enlaces)}"
-    )
+        if not titulo or not enlace:
+            continue
 
-    for enlace_html in todos_los_enlaces:
-        titulo = limpiar(
-            enlace_html.get_text(" ", strip=True)
-        )
+        dominio = urlparse(enlace).netloc.lower()
 
-        enlace = limpiar(
-            enlace_html.get("href", "")
-        )
+        # Los comunicados de la sección Press Releases comienzan
+        # normalmente por “GigaGen” y enlazan a Grifols o GlobeNewswire.
+        if not titulo.lower().startswith("gigagen"):
+            continue
 
-        if not es_enlace_de_comunicado(
-            titulo,
-            enlace,
-        ):
+        if dominio not in DOMINIOS_PERMITIDOS:
             continue
 
         if enlace in enlaces_vistos:
@@ -282,104 +104,72 @@ def obtener_comunicados():
 
         enlaces_vistos.add(enlace)
 
-        print(f"Comunicado encontrado: {titulo}")
-
-        datos = obtener_datos_articulo(enlace)
-
-        comunicados.append({
-            "titulo": titulo,
-            "enlace": enlace,
-            "fecha": datos["fecha"],
-            "descripcion": datos["descripcion"],
-        })
+        comunicados.append(
+            {
+                "titulo": titulo,
+                "enlace": enlace,
+                "descripcion": (
+                    "Comunicado de prensa publicado por GigaGen. "
+                    "Abre el enlace para consultar la noticia completa."
+                ),
+            }
+        )
 
     if not comunicados:
         raise RuntimeError(
-            "No se encontraron enlaces de comunicados de "
-            "GigaGen publicados en Grifols, GlobeNewswire "
-            "o PR Newswire. La RSS anterior no será eliminada."
+            "No se encontraron comunicados de GigaGen en la página principal."
         )
 
-    fecha_antigua = datetime(
-        1970,
-        1,
-        1,
-        tzinfo=timezone.utc,
-    )
-
-    comunicados.sort(
-        key=lambda comunicado: (
-            comunicado["fecha"] or fecha_antigua
-        ),
-        reverse=True,
-    )
-
-    print(
-        f"Comunicados actuales encontrados: "
-        f"{len(comunicados)}"
-    )
-
-    return comunicados
+    return comunicados[:30]
 
 
 def crear_rss(comunicados):
-    feed = FeedGenerator()
+    fechas_anteriores = cargar_fechas_anteriores()
+    fecha_actual = datetime.now(timezone.utc)
 
-    feed.id(GITHUB_RSS)
-    feed.title("GigaGen – Current Press Releases")
-    feed.description(
-        "Current official press releases published by GigaGen"
+    generador = FeedGenerator()
+    generador.id(PAGINA)
+    generador.title("GigaGen - Press Releases")
+    generador.link(href=PAGINA, rel="alternate")
+    generador.link(href=URL_RSS_PUBLICA, rel="self")
+    generador.description(
+        "Últimos comunicados y noticias corporativas de GigaGen"
     )
-    feed.language("en-US")
-    feed.lastBuildDate(datetime.now(timezone.utc))
+    generador.language("en")
+    generador.lastBuildDate(fecha_actual)
 
-    feed.link(
-        href=NEWS_URL,
-        rel="alternate",
-    )
+    # Se añaden en orden inverso porque FeedGen coloca primero
+    # el último elemento incorporado.
+    for comunicado in reversed(comunicados):
+        enlace = comunicado["enlace"]
 
-    feed.link(
-        href=GITHUB_RSS,
-        rel="self",
-        type="application/rss+xml",
-    )
+        fecha_publicacion = fechas_anteriores.get(
+            enlace,
+            fecha_actual,
+        )
 
-    for comunicado in comunicados[:100]:
-        entrada = feed.add_entry()
-
-        entrada.id(comunicado["enlace"])
+        entrada = generador.add_entry()
+        entrada.id(enlace)
+        entrada.guid(enlace, permalink=True)
         entrada.title(comunicado["titulo"])
-        entrada.link(href=comunicado["enlace"])
+        entrada.link(href=enlace)
+        entrada.description(comunicado["descripcion"])
+        entrada.pubDate(fecha_publicacion)
 
-        entrada.description(
-            comunicado["descripcion"]
-            or (
-                "Read the complete GigaGen press release: "
-                f"{comunicado['titulo']}"
-            )
-        )
+    ARCHIVO_RSS.parent.mkdir(parents=True, exist_ok=True)
 
-        if comunicado["fecha"]:
-            entrada.pubDate(comunicado["fecha"])
-
-    OUTPUT_FILE.parent.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-
-    feed.rss_file(
-        str(OUTPUT_FILE),
+    generador.rss_file(
+        str(ARCHIVO_RSS),
         pretty=True,
-        encoding="UTF-8",
     )
 
-    if not OUTPUT_FILE.exists():
-        raise RuntimeError(
-            "No se pudo crear docs/feed.xml"
-        )
+    if not ARCHIVO_RSS.exists() or ARCHIVO_RSS.stat().st_size < 200:
+        raise RuntimeError("El archivo docs/feed.xml no se creó correctamente.")
 
-    print(f"RSS creada correctamente: {OUTPUT_FILE}")
-    print(f"Tamaño: {OUTPUT_FILE.stat().st_size} bytes")
+    print(
+        f"RSS creado correctamente con {len(comunicados)} comunicados: "
+        f"{ARCHIVO_RSS}"
+    )
 
 
 def main():
