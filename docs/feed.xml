@@ -1,0 +1,104 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0">
+  <channel>
+    <title>GigaGen - Press Releases</title>
+    <link>https://raw.githubusercontent.com/plis2100/rss-gigagen/main/docs/feed.xml</link>
+    <description>Últimos comunicados de prensa y noticias corporativas de GigaGen</description>
+    <atom:link href="https://raw.githubusercontent.com/plis2100/rss-gigagen/main/docs/feed.xml" rel="self"/>
+    <docs>http://www.rssboard.org/rss-specification</docs>
+    <generator>python-feedgen</generator>
+    <language>en</language>
+    <lastBuildDate>Sat, 05 Sep 2026 18:09:35 +0000</lastBuildDate>
+    <item>
+      <title>GigaGen presents positive phase 1 data on non-blocking anti-CTLA-4 drug candidate GIGA-564 at AACR 2026</title>
+      <link>https://www.grifols.com/en/view-news/-/news/gigagen-presents-positive-phase-1-data-on-non-blocking-anti-ctla-4-drug-candidate-giga-564-at-aacr-2026</link>
+      <description>Comunicado de prensa o noticia corporativa de GigaGen.</description>
+      <guid isPermaLink="true">https://www.grifols.com/en/view-news/-/news/gigagen-presents-positive-phase-1-data-on-non-blocking-anti-ctla-4-drug-candidate-giga-564-at-aacr-2026</guid>
+      <pubDate>Sat, 05 Sep 2026 18:09:35 +0000</pubDate>
+    </item>
+    <item>
+      <title>GigaGen Doses First Patient in Phase 1 Trial of Recombinant Polyclonal Drug Candidate, GIGA-2339, for Hepatitis B Virus</title>
+      <link>https://www.globenewswire.com/news-release/2024/11/19/2983574/0/en/GigaGen-Doses-First-Patient-in-Phase-1-Trial-of-Recombinant-Polyclonal-Drug-Candidate-GIGA-2339-for-Hepatitis-B-Virus.html</link>
+      <description>Comunicado de prensa o noticia corporativa de GigaGen.</description>
+      <guid isPermaLink="true">https://www.globenewswire.com/news-release/2024/11/19/2983574/0/en/GigaGen-Doses-First-Patient-in-Phase-1-Trial-of-Recombinant-Polyclonal-Drug-Candidate-GIGA-2339-for-Hepatitis-B-Virus.html</guid>
+      <pubDate>Sat, 05 Sep 2026 18:09:35 +0000</pubDate>
+    </item>
+    <item>
+      <title>GigaGen Awarded U.S. BARDA Contract to Develop Recombinant Polyclonal Antibody Therapies for Botulinum Neurotoxins and an Additional Biothreat</title>
+      <link>https://www.globenewswire.com/en/news-release/2024/10/03/2957651/0/en/GigaGen-Awarded-U-S-BARDA-Contract-to-Develop-Recombinant-Polyclonal-Antibody-Therapies-for-Botulinum-Neurotoxins-and-an-Additional-Biothreat.html</link>
+      <description>Comunicado de prensa o noticia corporativa de GigaGen.</description>
+      <guid isPermaLink="true">https://www.globenewswire.com/en/news-release/2024/10/03/2957651/0/en/GigaGen-Awarded-U-S-BARDA-Contract-to-Develop-Recombinant-Polyclonal-Antibody-Therapies-for-Botulinum-Neurotoxins-and-an-Additional-Biothreat.html</guid>
+      <pubDate>Sat, 05 Sep 2026 18:09:35 +0000</pubDate>
+    </item>
+    <item>
+      <title>GigaGen Receives FDA Clearance of IND Application for Phase 1 Trial of Recombinant Polyclonal for HBV Treatment, GIGA-2339</title>
+      <link>https://www.globenewswire.com/en/news-release/2024/07/31/2921826/0/en/GigaGen-Receives-FDA-Clearance-of-IND-Application-for-Phase-1-Trial-of-Recombinant-Polyclonal-for-HBV-Treatment-GIGA-2339.html</link>
+      <description>Comunicado de prensa o noticia corporativa de GigaGen.</description>
+      <guid isPermaLink="true">https://www.globenewswire.com/en/news-release/2024/07/31/2921826/0/en/GigaGen-Receives-FDA-Clearance-of-IND-Application-for-Phase-1-Trial-of-Recombinant-Polyclonal-for-HBV-Treatment-GIGA-2339.html</guid>
+      <pubDate>Sat, 05 Sep 2026 18:09:35 +0000</pubDate>
+    </item>
+    <item>
+      <title>GigaGen Doses First Patient in Phase 1 Trial of Anti-CTLA-4 Oncology Drug Candidate GIGA-564 in Advanced Solid Tumors</title>
+      <link>https://www.globenewswire.com/news-release/2024/05/20/2884820/0/en/GigaGen-Doses-First-Patient-in-Phase-1-Trial-of-Anti-CTLA-4-Oncology-Drug-Candidate-GIGA-564-in-Advanced-Solid-Tumors.html</link>
+      <description>Comunicado de prensa o noticia corporativa de GigaGen.</description>
+      <guid isPermaLink="true">https://www.globenewswire.com/news-release/2024/05/20/2884820/0/en/GigaGen-Doses-First-Patient-in-Phase-1-Trial-of-Anti-CTLA-4-Oncology-Drug-Candidate-GIGA-564-in-Advanced-Solid-Tumors.html</guid>
+      <pubDate>Sat, 05 Sep 2026 18:09:35 +0000</pubDate>
+    </item>
+    <item>
+      <title>GigaGen Receives FDA Clearance of IND to Begin Phase 1 Trial of Oncology Drug Candidate, GIGA-564, in Solid Tumors</title>
+      <link>https://www.globenewswire.com/news-release/2023/12/12/2794694/0/en/GigaGen-Receives-FDA-Clearance-of-IND-to-Begin-Phase-1-Trial-of-Oncology-Drug-Candidate-GIGA-564-in-Solid-Tumors.html</link>
+      <description>Comunicado de prensa o noticia corporativa de GigaGen.</description>
+      <guid isPermaLink="true">https://www.globenewswire.com/news-release/2023/12/12/2794694/0/en/GigaGen-Receives-FDA-Clearance-of-IND-to-Begin-Phase-1-Trial-of-Oncology-Drug-Candidate-GIGA-564-in-Solid-Tumors.html</guid>
+      <pubDate>Sat, 05 Sep 2026 18:09:35 +0000</pubDate>
+    </item>
+    <item>
+      <title>GigaGen Presents IND-Enabling Data and Phase 1 Trial Strategy for its Novel Anti-CTLA-4 Oncology Drug Candidate, GIGA-564, at SITC 2023</title>
+      <link>https://www.globenewswire.com/news-release/2023/11/06/2774078/0/en/GigaGen-Presents-IND-Enabling-Data-and-Phase-1-Trial-Strategy-for-its-Novel-Anti-CTLA-4-Oncology-Drug-Candidate-GIGA-564-at-SITC-2023.html</link>
+      <description>Comunicado de prensa o noticia corporativa de GigaGen.</description>
+      <guid isPermaLink="true">https://www.globenewswire.com/news-release/2023/11/06/2774078/0/en/GigaGen-Presents-IND-Enabling-Data-and-Phase-1-Trial-Strategy-for-its-Novel-Anti-CTLA-4-Oncology-Drug-Candidate-GIGA-564-at-SITC-2023.html</guid>
+      <pubDate>Sat, 05 Sep 2026 18:09:35 +0000</pubDate>
+    </item>
+    <item>
+      <title>GigaGen Granted Expansion of Contract with US Department of Defense to Develop Synthetic Human Antibody Treatments for Botulinum Neurotoxins</title>
+      <link>https://www.globenewswire.com/news-release/2023/10/19/2763125/0/en/GigaGen-Granted-Expansion-of-Contract-with-US-Department-of-Defense-to-Develop-Synthetic-Human-Antibody-Treatments-for-Botulinum-Neurotoxins.html</link>
+      <description>Comunicado de prensa o noticia corporativa de GigaGen.</description>
+      <guid isPermaLink="true">https://www.globenewswire.com/news-release/2023/10/19/2763125/0/en/GigaGen-Granted-Expansion-of-Contract-with-US-Department-of-Defense-to-Develop-Synthetic-Human-Antibody-Treatments-for-Botulinum-Neurotoxins.html</guid>
+      <pubDate>Sat, 05 Sep 2026 18:09:35 +0000</pubDate>
+    </item>
+    <item>
+      <title>GigaGen Partners with the National Cancer Institute to Advance Oncology Drug Candidate GIGA-564</title>
+      <link>https://www.globenewswire.com/news-release/2023/09/28/2751133/0/en/GigaGen-Partners-with-the-National-Cancer-Institute-to-Advance-Oncology-Drug-Candidate-GIGA-564.html</link>
+      <description>Comunicado de prensa o noticia corporativa de GigaGen.</description>
+      <guid isPermaLink="true">https://www.globenewswire.com/news-release/2023/09/28/2751133/0/en/GigaGen-Partners-with-the-National-Cancer-Institute-to-Advance-Oncology-Drug-Candidate-GIGA-564.html</guid>
+      <pubDate>Sat, 05 Sep 2026 18:09:35 +0000</pubDate>
+    </item>
+    <item>
+      <title>GigaGen Awarded Contract by U.S. Department of Defense to Discover Synthetic Human Antibody Treatments for High-Priority Toxins and Pathogens</title>
+      <link>https://www.globenewswire.com/news-release/2022/09/15/2517071/0/en/GigaGen-Awarded-Contract-by-U-S-Department-of-Defense-to-Discover-Synthetic-Human-Antibody-Treatments-for-High-Priority-Toxins-and-Pathogens.html</link>
+      <description>Comunicado de prensa o noticia corporativa de GigaGen.</description>
+      <guid isPermaLink="true">https://www.globenewswire.com/news-release/2022/09/15/2517071/0/en/GigaGen-Awarded-Contract-by-U-S-Department-of-Defense-to-Discover-Synthetic-Human-Antibody-Treatments-for-High-Priority-Toxins-and-Pathogens.html</guid>
+      <pubDate>Sat, 05 Sep 2026 18:09:35 +0000</pubDate>
+    </item>
+    <item>
+      <title>GigaGen Publishes Research Showcasing First-Ever Clinical GMP Manufacturing and IND-Enabling Studies for its New Class of Drugs, Recombinant Polyclonal Antibodies</title>
+      <link>https://www.globenewswire.com/en/news-release/2022/07/28/2487786/0/en/GigaGen-Publishes-Research-Showcasing-First-Ever-Clinical-GMP-Manufacturing-and-IND-Enabling-Studies-for-its-New-Class-of-Drugs-Recombinant-Polyclonal-Antibodies.html</link>
+      <description>Comunicado de prensa o noticia corporativa de GigaGen.</description>
+      <guid isPermaLink="true">https://www.globenewswire.com/en/news-release/2022/07/28/2487786/0/en/GigaGen-Publishes-Research-Showcasing-First-Ever-Clinical-GMP-Manufacturing-and-IND-Enabling-Studies-for-its-New-Class-of-Drugs-Recombinant-Polyclonal-Antibodies.html</guid>
+      <pubDate>Sat, 05 Sep 2026 18:09:35 +0000</pubDate>
+    </item>
+    <item>
+      <title>GigaGen Publishes Research Demonstrating the Potential of its Machine Learning Platform to Improve Antibody Drug Discovery and Development</title>
+      <link>https://www.globenewswire.com/news-release/2022/05/19/2447167/0/en/GigaGen-Publishes-Research-Demonstrating-the-Potential-of-its-Machine-Learning-Platform-to-Improve-Antibody-Drug-Discovery-and-Development.html</link>
+      <description>Comunicado de prensa o noticia corporativa de GigaGen.</description>
+      <guid isPermaLink="true">https://www.globenewswire.com/news-release/2022/05/19/2447167/0/en/GigaGen-Publishes-Research-Demonstrating-the-Potential-of-its-Machine-Learning-Platform-to-Improve-Antibody-Drug-Discovery-and-Development.html</guid>
+      <pubDate>Sat, 05 Sep 2026 18:09:35 +0000</pubDate>
+    </item>
+    <item>
+      <title>GigaGen Licenses ProteoNic’s 2G UNic Technology Platform for High Yield Production of GigaGen’s Mono- and Polyclonal Antibody Drug Candidates</title>
+      <link>https://www.globenewswire.com/news-release/2021/09/30/2306358/0/en/GigaGen-Licenses-ProteoNic-s-2G-UNicTM-Technology-Platform-for-High-Yield-Production-of-GigaGen-s-Mono-and-Polyclonal-Antibody-Drug-Candidates.html</link>
+      <description>Comunicado de prensa o noticia corporativa de GigaGen.</description>
+      <guid isPermaLink="true">https://www.globenewswire.com/news-release/2021/09/30/2306358/0/en/GigaGen-Licenses-ProteoNic-s-2G-UNicTM-Technology-Platform-for-High-Yield-Production-of-GigaGen-s-Mono-and-Polyclonal-Antibody-Drug-Candidates.html</guid>
+      <pubDate>Sat, 05 Sep 2026 18:09:35 +0000</pubDate>
+    </item>
+  </channel>
+</rss>
