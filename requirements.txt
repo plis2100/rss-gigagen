@@ -1,2 +1,4 @@
 feedgen==1.0.0
 playwright==1.55.0
+requests
+beautifulsoup4
